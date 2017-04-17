@@ -1,3 +1,5 @@
+. .\Test-DayProperties.ps1
+
 Describe -Name 'Test Quarter' -Fixture {
 
     It -name "Months '<Months>' in a quarter '<Quarter>'" -TestCases @(
