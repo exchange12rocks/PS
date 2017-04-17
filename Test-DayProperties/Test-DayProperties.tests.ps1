@@ -1,4 +1,4 @@
-. .\Test-DayProperties.ps1
+. (Join-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Path) -ChildPath 'Test-DayProperties.ps1')
 
 Describe -Name 'Test Quarter' -Fixture {
 
