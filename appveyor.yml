@@ -1,5 +1,5 @@
 install:
-  - ps: Install-Module Pester -SkipPublisherCheck
+  - ps: Install-Module Pester
 
 build: false
 
