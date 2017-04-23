@@ -10,9 +10,9 @@ test_script:
 
 skip_commits:
   files:
-	- README.md
-	- appveyor.yml
-	- .gitattributes
-	- .gitignore
-	- LICENSE
-	- README.md
+    - README.md
+    - appveyor.yml
+    - .gitattributes
+    - .gitignore
+    - LICENSE
+    - README.md
