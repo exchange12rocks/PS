@@ -1,9 +1,18 @@
 install:
-  - cinst pester
+  - ps: Install-Module Pester -SkipPublisherCheck
 
 build: false
 
 test_script:
-  - ps: $res = Invoke-Pester -Path '.\*\*.tests.ps1' -OutputFormat NUnitXml -OutputFile TestsResults.xml -PassThru
-  - ps: (New-Object 'System.Net.WebClient').UploadFile("https://ci.appveyor.com/api/testresults/nunit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\TestsResults.xml))
+  - ps: $res = Invoke-Pester -OutputFormat NUnitXml -OutputFile TestsResults.xml -PassThru
+  - ps: (New-Object 'System.Net.WebClient').UploadFile("https://ci.appveyor.com/api/testresults/nunit/$($env:APPVEYOR_JOB_ID)", '.\TestsResults.xml'))
   - ps: if ($res.FailedCount -gt 0) { throw "$($res.FailedCount) tests failed."}
+
+skip_commits:
+  files:
+	- README.md
+	- appveyor.yml
+	- .gitattributes
+	- .gitignore
+	- LICENSE
+	- README.md
