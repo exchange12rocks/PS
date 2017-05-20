@@ -47,6 +47,9 @@ function Test-DayProperties {
         [Parameter(ParameterSetName='Default')]
         [switch]$EndOfMonth,
 
+        [Parameter(ParameterSetName='Default')]
+        [switch]$Last,
+
         [Parameter(ParameterSetName='Quarter', Mandatory)]
         [Parameter(ParameterSetName='QuarterType')]
         [ValidateRange(1,4)]
@@ -85,8 +88,18 @@ function Test-DayProperties {
             }
         }
         'Default' {
-            if ($Date.DayOfWeek.value__ -eq $DayOfWeek -and $Date.AddDays(-(7*($NumberInMonth-1))).Month -eq $Date.Month -and $Date.Day -le (7*$NumberInMonth)) {
-                $result = $true
+            $DaysToSubstract = (7*($NumberInMonth-1))
+            if ((New-TimeSpan -Days $DaysToSubstract).Ticks -le $Date.Ticks) {
+                if ($DayOfWeek -eq 7) {
+                    if ($Date.DayOfWeek.value__ -eq 0 -and $Date.AddDays(-$DaysToSubstract).Month -eq $Date.Month -and $Date.Day -le (7*$NumberInMonth)) {
+                        $result = $true
+                    }
+                }
+                else {
+                    if ($Date.DayOfWeek.value__ -eq $DayOfWeek -and $Date.AddDays(-$DaysToSubstract).Month -eq $Date.Month -and $Date.Day -le (7*$NumberInMonth)) {
+                        $result = $true
+                    }
+                }
             }
         }
         Default {
