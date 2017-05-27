@@ -33,10 +33,12 @@ function Test-DayProperties {
         [Parameter(ParameterSetName='Default', Position = 0)]
         [Parameter(ParameterSetName='Quarter', Position = 0)]
         [Parameter(ParameterSetName='QuarterType', Position = 0)]
+        [Parameter(ParameterSetName='Last')]
         [ValidateNotNullorEmpty()]
         [DateTime]$Date = (Get-Date),
 
         [Parameter(ParameterSetName='Default')]
+        [Parameter(ParameterSetName='Last')]
         [ValidateRange(1,7)]
         [int]$DayOfWeek,
 
@@ -47,7 +49,7 @@ function Test-DayProperties {
         [Parameter(ParameterSetName='Default')]
         [switch]$EndOfMonth,
 
-        [Parameter(ParameterSetName='Default')]
+        [Parameter(ParameterSetName='Last')]
         [switch]$Last,
 
         [Parameter(ParameterSetName='Quarter', Mandatory)]
@@ -60,6 +62,35 @@ function Test-DayProperties {
         [string]$QuarterType
 
     )
+
+    function GetLastDateOfCurrentMonth {
+
+        Param (
+            [ValidateNotNullorEmpty()]
+            [DateTime]$Date = (Get-Date)
+        )
+
+        $result = $false
+
+        if ($Date.Month -in @(1, 3, 5, 7, 8, 10, 12)) {
+            $result = New-Object -TypeName DateTime -ArgumentList @($Date.Year, $Date.Month, 31)
+        }
+        elseif ($Date.Month -in @(4, 6, 9, 11)) {
+            $result = New-Object -TypeName DateTime -ArgumentList @($Date.Year, $Date.Month, 30)
+        }
+        else { #February
+            try {
+                $result = New-Object -TypeName DateTime -ArgumentList @($Date.Year, $Date.Month, 29)
+            }
+            catch {
+                if ($Error[0].Exception.InnerException.HResult -eq -2146233086) {
+                    $result = New-Object -TypeName DateTime -ArgumentList @($Date.Year, $Date.Month, 28)
+                }
+            }
+        }
+
+        return $result
+    }
 
     $result = $false
        
@@ -76,8 +107,7 @@ function Test-DayProperties {
                 }
             }
             elseif ($QuarterType -eq 'End') {
-                $LastDayOfCurrentMonth = (New-Object -TypeName DateTime -ArgumentList @($Date.Year, $Date.Month, 1)).AddMonths(1).AddTicks(-1).Day
-                if (($Date.Month -in (3,6,9,12)) -and $Date.Day -eq $LastDayOfCurrentMonth) {
+                if (($Date.Month -in (3,6,9,12)) -and $Date.Day -eq ((GetLastDateOfCurrentMonth -Date $Date).Day)) {
                     $result = $true
                 }
             }
@@ -87,6 +117,19 @@ function Test-DayProperties {
                 $result = $true
             }
         }
+        'Last' {
+            $LastDateOfCurrentMonth = GetLastDateOfCurrentMonth -Date $Date
+            $StartOfLast7Days = $LastDateOfCurrentMonth.AddDays(-6)
+            if ($DayOfWeek -eq 7) {
+                if ($Date.DayOfWeek.value__ -eq 0 -and $Date -ge $StartOfLast7Days -and $Date -le $LastDateOfCurrentMonth) {
+                    $result = $true
+                }
+            }
+            elseif ($Date.DayOfWeek.value__ -eq $DayOfWeek -and $Date -ge $StartOfLast7Days -and $Date -le $LastDateOfCurrentMonth) {
+                $result = $true
+            }
+
+        }
         'Default' {
             $DaysToSubstract = (7*($NumberInMonth-1))
             if ((New-TimeSpan -Days $DaysToSubstract).Ticks -le $Date.Ticks) {
@@ -95,10 +138,8 @@ function Test-DayProperties {
                         $result = $true
                     }
                 }
-                else {
-                    if ($Date.DayOfWeek.value__ -eq $DayOfWeek -and $Date.AddDays(-$DaysToSubstract).Month -eq $Date.Month -and $Date.Day -le (7*$NumberInMonth)) {
+                elseif ($Date.DayOfWeek.value__ -eq $DayOfWeek -and $Date.AddDays(-$DaysToSubstract).Month -eq $Date.Month -and $Date.Day -le (7*$NumberInMonth)) {
                         $result = $true
-                    }
                 }
             }
         }

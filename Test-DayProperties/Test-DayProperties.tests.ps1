@@ -123,8 +123,8 @@ Describe -Name 'edge cases' -Fixture {
             @{Num = 3; Date = 29},
             @{Num = 4; Date = 30},
             @{Num = 5; Date = 31},
-            @{Num = 6; Date = 26},
-            @{Num = 7; Date = 25}
+            @{Num = 6; Date = 25},
+            @{Num = 7; Date = 26}
         ) -test {
             param (
                 [ValidateRange(1,7)]
