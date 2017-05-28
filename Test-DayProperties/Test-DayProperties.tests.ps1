@@ -1,4 +1,5 @@
-. (Join-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Path) -ChildPath 'Test-DayProperties.ps1')
+$FunctionName = ($MyInvocation.MyCommand.Name).Substring(0,($MyInvocation.MyCommand.Name).Length-10)
+. (Join-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Path) -ChildPath "$FunctionName.ps1")
 
 Describe -Name 'quarters' -Fixture {
 
@@ -16,7 +17,7 @@ Describe -Name 'quarters' -Fixture {
         )
 
         foreach ($Month in $Months) {
-            Test-DayProperties -Quarter $Quarter -Date (New-Object -TypeName DateTime -ArgumentList @((Get-Random -Minimum 1 -Maximum 9999), $Month, (Get-Random -Minimum 1 -Maximum 28))) |
+            &($FunctionName) -Quarter $Quarter -Date (New-Object -TypeName DateTime -ArgumentList @((Get-Random -Minimum 1 -Maximum 9999), $Month, (Get-Random -Minimum 1 -Maximum 28))) |
             Should Be $true
         }
     }
@@ -28,7 +29,7 @@ Describe -Name 'edge cases' -Fixture {
         $TheFirstDay = New-Object -TypeName DateTime -ArgumentList @(1, 1, 1)
 
         It -name "The very first day is in the first quarter" -test {
-            Test-DayProperties -Quarter 1 -Date $TheFirstDay |
+            &($FunctionName) -Quarter 1 -Date $TheFirstDay |
             Should Be $true
         }
 
@@ -42,12 +43,12 @@ Describe -Name 'edge cases' -Fixture {
                 [int]$Quarter
             )
 
-            Test-DayProperties -Quarter $Quarter -Date $TheFirstDay |
+            &($FunctionName) -Quarter $Quarter -Date $TheFirstDay |
             Should Be $false
         }
 
         It -name 'The very first day is the first Monday' -test { #http://www.academia.edu/1091577/What_day_of_the_week_was_01-01-0001 Gregorian calendar
-            Test-DayProperties -Date $TheFirstDay -DayOfWeek 1 -NumberInMonth 1 |
+            &($FunctionName) -Date $TheFirstDay -DayOfWeek 1 -NumberInMonth 1 |
             Should Be $true
         }
 
@@ -62,7 +63,7 @@ Describe -Name 'edge cases' -Fixture {
                 [int]$Num
             )
 
-            Test-DayProperties -Date $TheFirstDay -DayOfWeek 1 -NumberInMonth $Num | Should Be $false
+            &($FunctionName) -Date $TheFirstDay -DayOfWeek 1 -NumberInMonth $Num | Should Be $false
         }
     }
 
@@ -79,7 +80,7 @@ Describe -Name 'edge cases' -Fixture {
             )
 
             foreach ($Quarter in $Quarters) {
-                Test-DayProperties -Quarter $Quarter -Date $TheLastDay |
+                &($FunctionName) -Quarter $Quarter -Date $TheLastDay |
                 Should Be $false
             }
         }
@@ -92,7 +93,12 @@ Describe -Name 'edge cases' -Fixture {
                 [int]$Quarter
             )
 
-            Test-DayProperties -Quarter $Quarter -Date $TheLastDay |
+            &($FunctionName) -Quarter $Quarter -Date $TheLastDay |
+            Should Be $true
+        }
+        
+        It -name 'The very last day is the end of month' -test {
+            &($FunctionName) -Date $TheLastDay -EndOfMonth |
             Should Be $true
         }
     }
@@ -112,7 +118,7 @@ Describe -Name 'edge cases' -Fixture {
                 [int]$Num
             )
 
-            Test-DayProperties -Date (New-Object -TypeName DateTime -ArgumentList @(1, 1, $Num)) -DayOfWeek $Num -NumberInMonth 1 | Should Be $true
+            &($FunctionName) -Date (New-Object -TypeName DateTime -ArgumentList @(1, 1, $Num)) -DayOfWeek $Num -NumberInMonth 1 | Should Be $true
         }
     }
 
@@ -133,7 +139,93 @@ Describe -Name 'edge cases' -Fixture {
                 [int]$Date
             )
 
-            Test-DayProperties -Date (New-Object -TypeName DateTime -ArgumentList @(9999, 12, $Date)) -DayOfWeek $Num -Last | Should Be $true
+            &($FunctionName) -Date (New-Object -TypeName DateTime -ArgumentList @(9999, 12, $Date)) -DayOfWeek $Num -Last | Should Be $true
+        }
+    }
+
+    Context -Name 'Last of February' -Fixture {
+
+        It -name '28th of February is the last of its kind in the month' -test {
+            $Date = New-Object -TypeName DateTime -ArgumentList @((Get-Date).Year, 2, 28)
+            if ($Date.DayOfWeek.value__ -eq 0) {
+                $DayOfWeek = 7
+            }
+            else {
+                $DayOfWeek = $Date.DayOfWeek.value__
+            }
+            &($FunctionName) -Date $Date -DayOfWeek $DayOfWeek -Last | Should Be $true
+        }
+
+        It -name '29th of February is the last of its kind in the month' -test {
+            &($FunctionName) -Date (New-Object -TypeName DateTime -ArgumentList @(2016, 2, 29)) -DayOfWeek 1 -Last | Should Be $true
+        }
+        It -name '28th as the last day of February is the last of its kind in the month' -test {
+            &($FunctionName) -Date (New-Object -TypeName DateTime -ArgumentList @(2017, 2, 28)) -DayOfWeek 2 -Last | Should Be $true
+        }
+
+        It -name '29th of February is the last day of the month' -test {
+            &($FunctionName) -Date (New-Object -TypeName DateTime -ArgumentList @(2016, 2, 29)) -EndOfMonth | Should Be $true
+        }
+        It -name '28th as the last day of February is the last day of the month' -test {
+            &($FunctionName) -Date (New-Object -TypeName DateTime -ArgumentList @(2017, 2, 28)) -EndOfMonth | Should Be $true
+        }
+
+    }
+}
+
+Describe -Name 'Comment-based help' -Fixture { # http://www.lazywinadmin.com/2016/05/using-pester-to-test-your-comment-based.html
+    $Help = Get-Help -Name $FunctionName -Full
+    $Notes = ($Help.alertSet.alert.text -split '\n')
+
+    Context -Name "$FunctionName - Help" -Fixture {
+            
+        It -name 'Synopsis' -test {
+            $help.Synopsis | Should not BeNullOrEmpty
+        }
+        It -name 'Description' -test {
+            $help.Description | Should not BeNullOrEmpty
+        }
+        It -name 'Notes - Author' -test {
+            $Notes[0].trim() | Should Be 'Author: Kirill Nikolaev'
+        }
+        It -name 'Notes - Twitter' -test {
+            $Notes[1].trim() | Should Be 'Twitter: @exchange12rocks'
+        }
+
+        # Get the parameters declared in the Comment Based Help
+        $RiskMitigationParameters = 'Whatif', 'Confirm'
+        $HelpParameters = $help.parameters.parameter | Where-Object name -NotIn $RiskMitigationParameters
+
+        # Parse the function using AST
+        $AST = [System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)
+
+        # Get the parameters declared in the AST PARAM() Block
+        $ASTParameters = $AST.ParamBlock.Parameters.Name.variablepath.userpath
+
+        It -name 'Parameter - Compare Count Help/AST' -test {
+            $HelpParameters.name.count -eq $ASTParameters.count | Should Be $true
+        }
+            
+        # Parameter Description
+        If (-not [String]::IsNullOrEmpty($ASTParameters)) { # IF ASTParameters are found
+            $HelpParameters | ForEach-Object {
+                It -name "Parameter $($_.Name) - Should contains description" -test {
+                    $_.description | Should not BeNullOrEmpty
+                }
+            }
+        }
+            
+        # Examples
+        it -name 'Example - Count should be greater than 0' -test {
+            $Help.examples.example.code.count | Should BeGreaterthan 0
+        }
+
+        # Examples - Remarks (small description that comes with the example)
+        foreach ($Example in $Help.examples.example)
+        {
+            it "Example - Remarks on $($Example.Title)"{
+                $Example.remarks | Should not BeNullOrEmpty
+            }
         }
     }
 }

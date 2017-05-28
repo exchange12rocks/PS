@@ -1,4 +1,6 @@
-﻿<# MIT License
+﻿function Test-DayProperties {
+
+<# MIT License
 
     Copyright (c) 2017 Kirill Nikolaev
 
@@ -21,9 +23,77 @@
     SOFTWARE.
 #>
 
-#Requires -Version 3.0
+<#
+.SYNOPSIS
+    Tests the given date against different conditions.
 
-function Test-DayProperties {
+.DESCRIPTION
+    The function helps you to detect if today is the third Tuesday in a month, if the date belongs to some quarter, if today is the last day of a month etc.
+
+.PARAMETER Date
+    The date object which you are testing. By default, the current date/time.
+
+.PARAMETER DayOfWeek
+    Use to test if the day is the defined day in a week (Mon, Tue, Wed etc).
+
+.PARAMETER NumberInMonth
+    Use to detect if the day is the specified number of the day type defined in the DayOfWeek parameter.
+
+.PARAMETER EndOfMonth
+    Use to detect if the given day is the last day of the month.
+
+.PARAMETER Quarter
+    Use to detect if the given day is belongs to the specified quarter.
+
+.PARAMETER QuarterType
+    Use to detect if the given day is the start or the end of the specified quarter.
+
+.PARAMETER Last
+    Use to detect if the given day is the last day of some kind in the given month. If the DayOfWeek parameter is omitted, the kind of day is extracted from the Date parameter, otherwise — DayOfWeek is used.
+
+.EXAMPLE
+    Test-DayProperties -DayOfWeek 2 -NumberInMonth 2
+    Tests if the current day is the second Tuesday in this month.
+
+.EXAMPLE
+    Test-DayProperties -Date $Date -DayOfWeek 7 -Last
+    Tests if the date in the $Date object is the last Sunday in the month.
+
+.EXAMPLE
+    Test-DayProperties -EndOfMonth
+    Tests if today is the last day of the month.
+
+.EXAMPLE
+    Test-DayProperties -Date $Date -Quarter 3 -QuarterType End
+    Tests if the date in the $Date object is the end (the last day) of the 3rd quarter.
+
+.EXAMPLE
+    Test-DayProperties -QuarterType Start
+    Tests if today is the beginning of a quarter.
+
+.EXAMPLE
+    Test-DayProperties $Date -Quarter 1
+    Tests if the date in the $Date object belonngs to the 1st quarter.
+
+.INPUTS
+    [DateTime]
+
+.OUTPUTS
+    [boolean]
+
+.NOTES
+   Author: Kirill Nikolaev
+   Twitter: @exchange12rocks
+
+.LINK
+    https://exchange12rocks.org
+
+.LINK
+    https://github.com/exchange12rocks/PS/tree/master/Test-DayProperties
+    
+#>
+
+#Requires -Version 3.0
 
     [CmdletBinding(
         DefaultParametersetName='Default'
@@ -33,24 +103,22 @@ function Test-DayProperties {
         [Parameter(ParameterSetName='Default', Position = 0)]
         [Parameter(ParameterSetName='Quarter', Position = 0)]
         [Parameter(ParameterSetName='QuarterType', Position = 0)]
-        [Parameter(ParameterSetName='Last')]
+        [Parameter(ParameterSetName='EndOfMonth', Position = 0)]
+        [Parameter(ParameterSetName='Last', Position = 0)]
         [ValidateNotNullorEmpty()]
         [DateTime]$Date = (Get-Date),
 
-        [Parameter(ParameterSetName='Default')]
+        [Parameter(ParameterSetName='Default', Mandatory)]
         [Parameter(ParameterSetName='Last')]
         [ValidateRange(1,7)]
         [int]$DayOfWeek,
 
-        [Parameter(ParameterSetName='Default')]
+        [Parameter(ParameterSetName='Default', Mandatory)]
         [ValidateRange(1,5)] # It's impossible to have more that 5 weeks in a month (on Earth)
         [int]$NumberInMonth,
 
-        [Parameter(ParameterSetName='Default')]
+        [Parameter(ParameterSetName='EndOfMonth')]
         [switch]$EndOfMonth,
-
-        [Parameter(ParameterSetName='Last')]
-        [switch]$Last,
 
         [Parameter(ParameterSetName='Quarter', Mandatory)]
         [Parameter(ParameterSetName='QuarterType')]
@@ -59,7 +127,10 @@ function Test-DayProperties {
 
         [Parameter(ParameterSetName='QuarterType', Mandatory)]
         [ValidateSet('Start','End')]
-        [string]$QuarterType
+        [string]$QuarterType,
+
+        [Parameter(ParameterSetName='Last', Mandatory)]
+        [switch]$Last
 
     )
 
@@ -117,6 +188,11 @@ function Test-DayProperties {
                 $result = $true
             }
         }
+        'EndOfMonth' {
+            if ($Date -eq (GetLastDateOfCurrentMonth -Date $Date)) {
+                 $result = $true
+            }
+        }
         'Last' {
             $LastDateOfCurrentMonth = GetLastDateOfCurrentMonth -Date $Date
             $StartOfLast7Days = $LastDateOfCurrentMonth.AddDays(-6)
@@ -128,7 +204,6 @@ function Test-DayProperties {
             elseif ($Date.DayOfWeek.value__ -eq $DayOfWeek -and $Date -ge $StartOfLast7Days -and $Date -le $LastDateOfCurrentMonth) {
                 $result = $true
             }
-
         }
         'Default' {
             $DaysToSubstract = (7*($NumberInMonth-1))
