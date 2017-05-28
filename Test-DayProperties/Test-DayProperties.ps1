@@ -60,6 +60,10 @@
     Tests if the date in the $Date object is the last Sunday in the month.
 
 .EXAMPLE
+    Test-DayProperties -Last
+    Tests if today is the last day of its kind in the month.
+
+.EXAMPLE
     Test-DayProperties -EndOfMonth
     Tests if today is the last day of the month.
 
@@ -86,11 +90,11 @@
    Twitter: @exchange12rocks
 
 .LINK
-    https://exchange12rocks.org
+    https://exchange12rocks.org/2017/05/29/function-to-test-a-date-against-different-conditions
 
 .LINK
     https://github.com/exchange12rocks/PS/tree/master/Test-DayProperties
-    
+
 #>
 
 #Requires -Version 3.0
@@ -163,6 +167,20 @@
         return $result
     }
 
+    function GetDotNETDayOfWeek {
+        Param (
+            [ValidateRange(1,7)]
+            [int]$DayOfWeek
+        )
+
+        if ($DayOfWeek -eq 7) {
+            return 0
+        }
+        else {
+            return $DayOfWeek
+        }
+    }
+
     $result = $false
        
     switch ($PSCmdlet.ParameterSetName) {
@@ -196,25 +214,20 @@
         'Last' {
             $LastDateOfCurrentMonth = GetLastDateOfCurrentMonth -Date $Date
             $StartOfLast7Days = $LastDateOfCurrentMonth.AddDays(-6)
-            if ($DayOfWeek -eq 7) {
-                if ($Date.DayOfWeek.value__ -eq 0 -and $Date -ge $StartOfLast7Days -and $Date -le $LastDateOfCurrentMonth) {
+            if (!$DayOfWeek) {
+                if ($Date -ge $StartOfLast7Days -and $Date -le $LastDateOfCurrentMonth) {
                     $result = $true
                 }
             }
-            elseif ($Date.DayOfWeek.value__ -eq $DayOfWeek -and $Date -ge $StartOfLast7Days -and $Date -le $LastDateOfCurrentMonth) {
+            elseif ($Date.DayOfWeek.value__ -eq (GetDotNETDayOfWeek -DayOfWeek $DayOfWeek) -and $Date -ge $StartOfLast7Days -and $Date -le $LastDateOfCurrentMonth) {
                 $result = $true
             }
         }
         'Default' {
             $DaysToSubstract = (7*($NumberInMonth-1))
             if ((New-TimeSpan -Days $DaysToSubstract).Ticks -le $Date.Ticks) {
-                if ($DayOfWeek -eq 7) {
-                    if ($Date.DayOfWeek.value__ -eq 0 -and $Date.AddDays(-$DaysToSubstract).Month -eq $Date.Month -and $Date.Day -le (7*$NumberInMonth)) {
-                        $result = $true
-                    }
-                }
-                elseif ($Date.DayOfWeek.value__ -eq $DayOfWeek -and $Date.AddDays(-$DaysToSubstract).Month -eq $Date.Month -and $Date.Day -le (7*$NumberInMonth)) {
-                        $result = $true
+                if ($Date.DayOfWeek.value__ -eq (GetDotNETDayOfWeek -DayOfWeek $DayOfWeek) -and $Date.AddDays(-$DaysToSubstract).Month -eq $Date.Month -and $Date.Day -le (7*$NumberInMonth)) {
+                    $result = $true
                 }
             }
         }
