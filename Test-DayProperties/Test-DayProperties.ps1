@@ -34,7 +34,7 @@
     The date object which you are testing. By default, the current date/time.
 
 .PARAMETER DayOfWeek
-    Use to test if the day is the defined day in a week (Mon, Tue, Wed etc).
+    Use to test if the day is the defined day in a week (Mon - 1, Tue - 2, Wed - 3 etc).
 
 .PARAMETER NumberInMonth
     Use to detect if the day is the specified number of the day type defined in the DayOfWeek parameter.
