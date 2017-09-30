@@ -1,5 +1,6 @@
 install:
-  - ps: try { Import-Module -Name Pester -MinimumVersion 4.0.8; Get-Module Pester | Where-Object -FilterScript {$_.Version -lt '4.0.8'} | Remove-Module -Force} catch { if ($Error[0].FullyQualifiedErrorId -eq 'Modules_ModuleWithVersionNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand') { Install-Module -Name Pester -SkipPublisherCheck -Force; Import-Module -Name Pester -MinimumVersion 4.0.8;Get-Module Pester | Where-Object -FilterScript {$_.Version -lt '4.0.8'} | Remove-Module -Force } }
+  - ps: $Module = Get-Module -Name 'Pester' -ListAvailable
+  - ps: if ($Module) { if (-not ($Module | Where-Object -FilterScript {$_.Version -ge '4.0.8'})) { Install-Module -Name 'Pester' -MinimumVersion 4.0.8 -SkipPublisherCheck -Force }; Import-Module -Name 'Pester' -MinimumVersion 4.0.8; Get-Module -Name 'Pester' | Where-Object -FilterScript {$_.Version -lt '4.0.8'} | Remove-Module -Force } else { Install-Module -Name 'Pester'; Import-Module -Name 'Pester' }
 
 build: false
 
