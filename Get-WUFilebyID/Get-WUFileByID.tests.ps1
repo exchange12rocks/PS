@@ -32,6 +32,24 @@ $MultipleFilesNamesSCRegEx = @(
 )
 $SearchCriteriaSC = '*'
 
+$HTTPMultiple = @(
+    'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu',
+    'http://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu'
+)
+$HTTPSMultiple = @(
+    'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu',
+    'https://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu'
+)
+$HTTPSingle = @(
+    'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+)
+$HTTPSSingle = @(
+    'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+)
+$HTTPSingleString = 'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+$HTTPSSingleString = 'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+
+
 Describe -Name 'Pester presence' -Fixture {
     $Module = Get-Module -Name 'Pester'
     It -name 'The module is loaded' -test {
@@ -484,27 +502,86 @@ Describe -Name 'Unit tests' -Fixture {
     #. ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
     #& ($UnitFunctionName) -Columns -Pattern
 
-    Context -Name 'RewriteURLtoHTTPS' {
+    Context -Name 'DownloadWUFile' -Fixture {
+        $UnitFunctionName = 'DownloadWUFile'
+        . ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
+
+        Context ('{0} - Single file - HTTP' -f $UnitFunctionName) -Fixture {
+            $FunctionResult = & ($UnitFunctionName) -URL $HTTPSingleString -DestinationFolder '.\' -FileName $SingleFileName
+
+            It -name 'All files are downloaded' -test {
+                foreach ($Item in $SingleFileName) {
+                    $Item | Should -Exist
+                }
+            }
+            It -name 'Only a single item returned' -test {
+                $FunctionResult.Count | Should -Be 1
+            }
+            It -name 'Returned items are of System.IO.FileInfo type' -test {
+                foreach ($Item in $FunctionResult) {
+                    $Item | Should -BeOfType 'System.IO.FileInfo'
+                }
+            }
+
+            foreach ($Item in $SingleFileName) {
+                Remove-Item -Path $Item -Force
+            }
+        }
+
+        <# Unfortunately, download.microsoft.com has an incorrect certificate installed, which renders HTTPS links useless.
+        Context ('{0} - SingleFile - HTTPS' -f $UnitFunctionName) -Fixture {
+            $FunctionResult = & ($UnitFunctionName) -URL $HTTPSSingleString -DestinationFolder '.\' -FileName $SingleFileName
+
+            It -name 'All files are downloaded' -test {
+                foreach ($Item in $SingleFileName) {
+                    $Item | Should -Exist
+                }
+            }
+            It -name 'Only a single item returned' -test {
+                $FunctionResult.Count | Should -Be 1
+            }
+            It -name 'Returned items are of System.IO.FileInfo type' -test {
+                foreach ($Item in $FunctionResult) {
+                    $Item | Should -BeOfType 'System.IO.FileInfo'
+                }
+            }
+
+            foreach ($Item in $SingleFileName) {
+                Remove-Item -Path $Item -Force
+            }
+        } #>
+
+        Context ('{0} - Multiple files - HTTP' -f $UnitFunctionName) -Fixture {
+            $FunctionResult = @()
+            foreach ($Item in $HTTPMultiple) {
+                $Item -match '.+/(.+)$'
+                $FunctionResult += & ($UnitFunctionName) -URL $Item -DestinationFolder '.\' -FileName $Matches[1]
+            }
+
+            It -name 'All files are downloaded' -test {
+                foreach ($Item in $MultipleFilesNames) {
+                    $Item | Should -Exist
+                }
+            }
+            It -name 'Multiple items returned' -test {
+                $FunctionResult.Count | Should -Be 2
+            }
+            It -name 'Returned items are of System.IO.FileInfo type' -test {
+                foreach ($Item in $FunctionResult) {
+                    $Item | Should -BeOfType 'System.IO.FileInfo'
+                }
+            }
+    
+            foreach ($Item in $MultipleFilesNames) {
+                Remove-Item -Path $Item -Force
+            }
+        }
+    }
+
+    Context -Name 'RewriteURLtoHTTPS' -Fixture {
         $UnitFunctionName = 'RewriteURLtoHTTPS'
         . ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
 
-        $HTTPMultiple = @(
-            'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu',
-            'http://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu'
-        )
-        $HTTPSMultiple = @(
-            'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu',
-            'https://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu'
-        )
-        $HTTPSingle = @(
-            'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
-        )
-        $HTTPSSingle = @(
-            'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
-        )
-        $HTTPSingleString = 'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
-        $HTTPSSingleString = 'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
-        
         It -name ('{0} - HTTPMultiple' -f $UnitFunctionName) -test {
             & ($UnitFunctionName) -URL $HTTPMultiple | Should -Be $HTTPSMultiple
         }

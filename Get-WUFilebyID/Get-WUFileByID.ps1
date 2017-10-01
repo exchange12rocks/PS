@@ -102,7 +102,7 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
         [string]$SearchCriteria,
         [Parameter(ParameterSetName = 'Default')]
         [Parameter(ParameterSetName = 'ByGUID')]
-        [ValidateScript( {Test-Path $_ -PathType 'Container'})] 
+        [ValidateScript({Test-Path $_ -PathType 'Container'})]
         [string]$DestinationFolder = '.\',
         [Parameter(ParameterSetName = 'Default')]
         [Parameter(ParameterSetName = 'ByGUID')]
@@ -144,6 +144,42 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
                 END {
                     return $Counter
                 }
+            }
+        }
+
+        function DownloadWUFile {
+            Param (
+                [Parameter(Mandatory)]
+                [string]$URL,
+                [Parameter(Mandatory)]
+                [ValidateScript({Test-Path $_ -PathType 'Container'})]
+                [string]$DestinationFolder,
+                [Parameter(Mandatory)]
+                [string]$FileName,
+                [string]$KB,
+                [string]$GUID
+            )
+
+            BEGIN {
+                $Result = @()
+            }
+            PROCESS {
+                $FullFileName = Join-Path -Path $DestinationFolder -ChildPath $FileName
+                Invoke-WebRequest -Uri $URL -OutFile $FullFileName
+                if (Test-Path -Path $FullFileName -PathType Leaf) {
+                    $Result += (Get-Item -Path $FullFileName)
+                }
+                else {
+                    if ($GUID) {
+                        Write-Error -Message ('Could not write a file for GUID {0} to a location {1}' -f $GUID, $FullFileName)
+                    }
+                    else {
+                        Write-Error -Message ('Could not write a file for KB {0} to a location {1}' -f $KB, $FullFileName)
+                    }
+                }
+            }
+            END {
+                return $Result
             }
         }
 
@@ -328,18 +364,11 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
                 $Result = @()
                 foreach ($URL in $DownloadLinks) { 
                     if ($URL -match '.+/(.+)$') {
-                        $FullFileName = Join-Path -Path $DestinationFolder -ChildPath $matches[1]
-                        Invoke-WebRequest -Uri $URL -OutFile $FullFileName
-                        if (Test-Path -Path $FullFileName -PathType Leaf) {
-                            $Result += (Get-Item -Path $FullFileName)
+                        if ($PSCmdlet.ParameterSetName -eq 'Default') {
+                            $Result += DownloadWUFile -URL $URL -DestinationFolder $DestinationFolder -FileName $Matches[1] -KB $KB
                         }
                         else {
-                            if ($PSCmdlet.ParameterSetName -eq 'Default') {
-                                Write-Error -Message ('Could not write a file for KB {0} to a location {1}' -f $KB, $FullFileName)
-                            }
-                            else {
-                                Write-Error -Message ('Could not write a file for GUID {0} to a location {1}' -f $GUID, $FullFileName)
-                            }
+                            $Result += DownloadWUFile -URL $URL -DestinationFolder $DestinationFolder -FileName $Matches[1] -GUID $GUID
                         }
                     }
                     else {
