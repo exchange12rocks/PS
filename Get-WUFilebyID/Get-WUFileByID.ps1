@@ -47,6 +47,7 @@ Instructs the function to return only links to files w/o downloading them.
 
 .PARAMETER ForceSSL
 By default the Update Catalog returns HTTP links. Use this parameter to download files through HTTPS.
+Note that due to differences in CDN nodes set up, sometimes HTTPS downloads may fail.
 
 .PARAMETER SearchPageTemplate
 A URL of a web-page with a list of available update sets for a KB.
