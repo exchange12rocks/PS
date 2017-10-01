@@ -324,69 +324,290 @@ Describe -Name 'Links only' -Fixture {
     }
 }
 
-Describe -Name 'Unit tests' -Fixture {
-    $UnitFunctionName = 'FindTableColumnNumber'
-    #. ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
-    #& ($UnitFunctionName) -Columns -Pattern
-
-    $UnitFunctionName = 'GetKBDownloadLinksByGUID'
-    #. ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
-    #& ($UnitFunctionName) -Columns -Pattern
-
-    Context -Name 'ParseKBDownloadLinksFromText' -Fixture {
-        $UnitFunctionName = 'ParseKBDownloadLinksFromText'
-
-        $Text = @"
-        //writes the eula and file info arrays
-        var downloadInformation = new Array();
-    downloadInformation[0] = new Object();
-    downloadInformation[0].updateID ='cdde339c-ebdb-4a16-add4-fb196a5053a8';
-    downloadInformation[0].isHotFix =false;
-    downloadInformation[0].enTitle ='Security Update for Windows Server 2012 R2 (KB3172729)';
-    downloadInformation[0].sizeLanguage ='';
-    downloadInformation[0].files = new Array();
-    downloadInformation[0].files[0] = new Object();
-    downloadInformation[0].files[0].url = 'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu';
-    downloadInformation[0].files[0].digest = '';
-    downloadInformation[0].files[0].architectures = 'AMD64';
-    downloadInformation[0].files[0].languages = 'all';
-    downloadInformation[0].files[0].longLanguages = 'all';
-    downloadInformation[0].files[0].fileName = 'windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu';
-    downloadInformation[0].files[0].defaultFileNameLength = 141;
-    downloadInformation[0].files[1] = new Object();
-    downloadInformation[0].files[1].url = 'http://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu';
-    downloadInformation[0].files[1].digest = '';
-    downloadInformation[0].files[1].architectures = 'AMD64';
-    downloadInformation[0].files[1].languages = 'all';
-    downloadInformation[0].files[1].longLanguages = 'all';
-    downloadInformation[0].files[1].fileName = 'windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu';
-    downloadInformation[0].files[1].defaultFileNameLength = 141;
-    downloadInformation[0].allFilesExist = false;
-    var minFilePathLength =137;
-    var eulaInfo =  new Array();
-    
-    
-"@
-
-        $TestResult = @(
-            'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu',
-            'http://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu'
-        )
-
-        . ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
-        $Result = & ($UnitFunctionName) -Text $Text -KB '3173424'
-        
-        It -name $UnitFunctionName -test {
-            #Can't wait for array comparison in Pester 4.1
-            foreach ($Item in $Result) {
-                $TestResult -contains $Item | Should -Be $true
+Describe -Name 'Links only - HTTPS' -Fixture {
+    Context -Name 'Single file - by ID' -Fixture {
+        $FunctionResult = &($FunctionName) -KB $SingleFileKBID -SearchCriteria $SearchCriteria -LinksOnly -ForceSSL
+        It -Name 'Only a single item returned' -test {
+            $FunctionResult.Count | Should -Be 1
+        }
+        It -name 'The correct item is returned' -test {
+            $FunctionResult | Should -Match ('^https*:\/\/.+{0}$' -f $SingleFileNameRegEx)
+        }
+        It -name 'Returned item is of System.String type' -test {
+            $FunctionResult | Should -BeOfType 'System.String'
+        }
+    }
+    Context -Name 'Multiple files - by ID' -Fixture {
+        $FunctionResult = &($FunctionName) -KB $MultipleFilesKBID -SearchCriteria $SearchCriteria -LinksOnly -ForceSSL
+        It -Name 'Multiple items returned' -test {
+            $FunctionResult.Count | Should -Be 2
+        }
+        It -name 'The correct items are returned' -test {
+            $FRContains = 0
+            foreach ($Item in $FunctionResult) {
+                foreach ($Item2 in $MultipleFilesNamesRegEx) {
+                    if ($Item -match ('^https*:\/\/.+{0}$' -f $Item2)) {
+                        $FRContains++
+                    }
+                }
             }
-            foreach ($Item in $TestResult) {
-                $Result -contains $Item | Should -Be $true
+            $EXContains = 0
+            foreach ($Item in $MultipleFilesNamesRegEx) {
+                foreach ($Item2 in $FunctionResult) {
+                    if ($Item2 -match ('^https*:\/\/.+{0}$' -f $Item)) {
+                        $EXContains++
+                    }
+                }
+            }
+            $EXContains | Should -Be $FunctionResult.Count
+            $FRContains | Should -Be $FunctionResult.Count
+        }
+        It -name 'Returned items are of System.String type' -test {
+            foreach ($Item in $FunctionResult) {
+                $Item | Should -BeOfType 'System.String'
+            }
+        }
+    }
+    Context -Name 'Single file - by GUID' -Fixture {
+        $FunctionResult = &($FunctionName) -GUID $SingleFileGUID -LinksOnly -ForceSSL
+        It -Name 'Only a single item returned' -test {
+            $FunctionResult.Count | Should -Be 1
+        }
+        It -name 'The correct item is returned' -test {
+            $FunctionResult | Should -Match ('^https*:\/\/.+{0}$' -f $SingleFileNameRegEx)
+        }
+        It -name 'Returned item is of System.String type' -test {
+            $FunctionResult | Should -BeOfType 'System.String'
+        }
+    }
+    Context -Name 'Multiple files - by GUID' -Fixture {
+        $FunctionResult = &($FunctionName) -GUID $MultipleFilesGUID -LinksOnly -ForceSSL
+        It -name 'Multiple files returned by GUID' -test {
+            $FunctionResult.Count | Should -Be 2
+        }
+        It -name 'The correct items are returned' -test {
+            $FRContains = 0
+            foreach ($Item in $FunctionResult) {
+                foreach ($Item2 in $MultipleFilesNamesRegEx) {
+                    if ($Item -match ('^https*:\/\/.+{0}$' -f $Item2)) {
+                        $FRContains++
+                    }
+                }
+            }
+            $EXContains = 0
+            foreach ($Item in $MultipleFilesNamesRegEx) {
+                foreach ($Item2 in $FunctionResult) {
+                    if ($Item2 -match ('^https*:\/\/.+{0}$' -f $Item)) {
+                        $EXContains++
+                    }
+                }
+            }
+            $EXContains | Should -Be $FunctionResult.Count
+            $FRContains | Should -Be $FunctionResult.Count
+        }
+        It -name 'Returned items are of System.String type' -test {
+            foreach ($Item in $FunctionResult) {
+                $Item | Should -BeOfType 'System.String'
+            }
+        }
+    }
+    Context -Name 'SC - Multiple files - by ID' -Fixture {
+        $FunctionResult = &($FunctionName) -KB $MultipleFilesKBIDSC -SearchCriteria $SearchCriteriaSC -LinksOnly -ForceSSL
+        It -name 'Multiple items returned' -test {
+            $FunctionResult.Count | Should -Be 2
+        }
+        It -name 'The correct items are returned' -test {
+            $FRContains = 0
+            foreach ($Item in $FunctionResult) {
+                foreach ($Item2 in $MultipleFilesNamesSCRegEx) {
+                    if ($Item -match ('^https*:\/\/.+{0}$' -f $Item2)) {
+                        $FRContains++
+                    }
+                }
+            }
+            $EXContains = 0
+            foreach ($Item in $MultipleFilesNamesSCRegEx) {
+                foreach ($Item2 in $FunctionResult) {
+                    if ($Item2 -match ('^https*:\/\/.+{0}$' -f $Item)) {
+                        $EXContains++
+                    }
+                }
+            }
+            $EXContains | Should -Be $FunctionResult.Count
+            $FRContains | Should -Be $FunctionResult.Count
+        }
+        It -name 'Returned items are of System.String type' -test {
+            foreach ($Item in $FunctionResult) {
+                $Item | Should -BeOfType 'System.String'
+            }
+        }
+    }
+    Context -Name 'SC - Multiple files - by GUID' -Fixture {
+        $FunctionResult = &($FunctionName) -GUID $MultipleFilesGUIDSC -LinksOnly -ForceSSL
+        It -name 'Multiple files returned by GUID' -test {
+            $FunctionResult.Count | Should -Be 2
+        }
+        It -name 'The correct items are returned' -test {
+            $FRContains = 0
+            foreach ($Item in $FunctionResult) {
+                foreach ($Item2 in $MultipleFilesNamesSCRegEx) {
+                    if ($Item -match ('^https*:\/\/.+{0}$' -f $Item2)) {
+                        $FRContains++
+                    }
+                }
+            }
+            $EXContains = 0
+            foreach ($Item in $MultipleFilesNamesSCRegEx) {
+                foreach ($Item2 in $FunctionResult) {
+                    if ($Item2 -match ('^https*:\/\/.+{0}$' -f $Item)) {
+                        $EXContains++
+                    }
+                }
+            }
+            $EXContains | Should -Be $FunctionResult.Count
+            $FRContains | Should -Be $FunctionResult.Count
+        }
+        It -name 'Returned items are of System.String type' -test {
+            foreach ($Item in $FunctionResult) {
+                $Item | Should -BeOfType 'System.String'
             }
         }
     }
 }
+
+Describe -Name 'Unit tests' -Fixture {
+    #$UnitFunctionName = 'FindTableColumnNumber'
+    #. ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
+    #& ($UnitFunctionName) -Columns -Pattern
+
+    #$UnitFunctionName = 'GetKBDownloadLinksByGUID'
+    #. ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
+    #& ($UnitFunctionName) -Columns -Pattern
+
+    Context -Name 'RewriteURLtoHTTPS' {
+        $UnitFunctionName = 'RewriteURLtoHTTPS'
+        . ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
+
+        $HTTPMultiple = @(
+            'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu',
+            'http://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu'
+        )
+        $HTTPSMultiple = @(
+            'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu',
+            'https://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu'
+        )
+        $HTTPSingle = @(
+            'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+        )
+        $HTTPSSingle = @(
+            'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+        )
+        $HTTPSingleString = 'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+        $HTTPSSingleString = 'https://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+        
+        It -name ('{0} - HTTPMultiple' -f $UnitFunctionName) -test {
+            & ($UnitFunctionName) -URL $HTTPMultiple | Should -Be $HTTPSMultiple
+        }
+        It -name ('{0} - HTTPSMultiple' -f $UnitFunctionName) -test {
+            & ($UnitFunctionName) -URL $HTTPSMultiple | Should -Be $HTTPSMultiple
+        }
+        It -name ('{0} - HTTPSingle' -f $UnitFunctionName) -test {
+            & ($UnitFunctionName) -URL $HTTPSingle | Should -Be $HTTPSSingle
+        }
+        It -name ('{0} - HTTPSSingle' -f $UnitFunctionName) -test {
+            & ($UnitFunctionName) -URL $HTTPSSingle | Should -Be $HTTPSSingle
+        }
+        It -name ('{0} - HTTPSingleString' -f $UnitFunctionName) -test {
+            & ($UnitFunctionName) -URL $HTTPSingleString | Should -Be $HTTPSSingle
+        }
+        It -name ('{0} - HTTPSSingleString' -f $UnitFunctionName) -test {
+            & ($UnitFunctionName) -URL $HTTPSSingleString | Should -Be $HTTPSSingle
+        }
+    }
+
+    Context -Name 'ParseKBDownloadLinksFromText' -Fixture {
+        $UnitFunctionName = 'ParseKBDownloadLinksFromText'
+        . ([scriptblock]::Create((([System.Management.Automation.Language.Parser]::ParseInput((Get-Content function:$FunctionName), [ref]$null, [ref]$null)).beginBlock.FindAll( {$args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]}, $true) | Where-Object -FilterScript {$_.Name -eq $UnitFunctionName}).Extent.Text))
+        
+        It -name ('{0} - Multiple' -f $UnitFunctionName) -test {
+            $TextMultiple = @"
+    //writes the eula and file info arrays
+    var downloadInformation = new Array();
+downloadInformation[0] = new Object();
+downloadInformation[0].updateID ='cdde339c-ebdb-4a16-add4-fb196a5053a8';
+downloadInformation[0].isHotFix =false;
+downloadInformation[0].enTitle ='Security Update for Windows Server 2012 R2 (KB3172729)';
+downloadInformation[0].sizeLanguage ='';
+downloadInformation[0].files = new Array();
+downloadInformation[0].files[0] = new Object();
+downloadInformation[0].files[0].url = 'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu';
+downloadInformation[0].files[0].digest = '';
+downloadInformation[0].files[0].architectures = 'AMD64';
+downloadInformation[0].files[0].languages = 'all';
+downloadInformation[0].files[0].longLanguages = 'all';
+downloadInformation[0].files[0].fileName = 'windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu';
+downloadInformation[0].files[0].defaultFileNameLength = 141;
+downloadInformation[0].files[1] = new Object();
+downloadInformation[0].files[1].url = 'http://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu';
+downloadInformation[0].files[1].digest = '';
+downloadInformation[0].files[1].architectures = 'AMD64';
+downloadInformation[0].files[1].languages = 'all';
+downloadInformation[0].files[1].longLanguages = 'all';
+downloadInformation[0].files[1].fileName = 'windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu';
+downloadInformation[0].files[1].defaultFileNameLength = 141;
+downloadInformation[0].allFilesExist = false;
+var minFilePathLength =137;
+var eulaInfo =  new Array();
+
+
+"@
+            $TestResultMultiple = @(
+                'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu',
+                'http://download.windowsupdate.com/d/msdownload/update/software/secu/2016/07/windows8.1-kb3172729-x64_e8003822a7ef4705cbb65623b72fd3cec73fe222.msu'
+            )
+
+            $Result = & ($UnitFunctionName) -Text $TextMultiple -KB '3173424'
+
+            #Can't wait for array comparison in Pester 4.1
+            foreach ($Item in $Result) {
+                $TestResultMultiple -contains $Item | Should -Be $true
+            }
+            foreach ($Item in $TestResultMultiple) {
+                $Result -contains $Item | Should -Be $true
+            }
+        }
+        It -name ('{0} - Single' -f $UnitFunctionName) -test {
+            $TextSingle = @"
+    //writes the eula and file info arrays
+    var downloadInformation = new Array();
+downloadInformation[0] = new Object();
+downloadInformation[0].updateID ='cdde339c-ebdb-4a16-add4-fb196a5053a8';
+downloadInformation[0].isHotFix =false;
+downloadInformation[0].enTitle ='Security Update for Windows Server 2012 R2 (KB3172729)';
+downloadInformation[0].sizeLanguage ='';
+downloadInformation[0].files = new Array();
+downloadInformation[0].files[0] = new Object();
+downloadInformation[0].files[0].url = 'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu';
+downloadInformation[0].files[0].digest = '';
+downloadInformation[0].files[0].architectures = 'AMD64';
+downloadInformation[0].files[0].languages = 'all';
+downloadInformation[0].files[0].longLanguages = 'all';
+downloadInformation[0].files[0].fileName = 'windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu';
+downloadInformation[0].files[0].defaultFileNameLength = 141;
+downloadInformation[0].allFilesExist = false;
+var minFilePathLength =137;
+var eulaInfo =  new Array();
+
+
+"@
+            $TestResultSingle = 'http://download.windowsupdate.com/d/msdownload/update/software/crup/2016/06/windows8.1-kb3173424-x64_9a1c9e0082978d92abee71f2cfed5e0f4b6ce85c.msu'
+            
+            $Result = & ($UnitFunctionName) -Text $TextSingle -KB '3173424'
+            $Result | Should -Be $TestResultSingle
+        }
+    }
+}
+
 Describe -Name 'Comment-based help' -Fixture { # http://www.lazywinadmin.com/2016/05/using-pester-to-test-your-comment-based.html
     $Help = Get-Help -Name $FunctionName -Full
     $Notes = ($Help.alertSet.alert.text -split '\n')

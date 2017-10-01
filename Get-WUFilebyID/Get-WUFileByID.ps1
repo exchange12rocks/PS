@@ -43,7 +43,10 @@ Product name (or a part of it). If an update has been released for several produ
 A folder where downloaded files will be saved.
 
 .PARAMETER LinksOnly
-Instructs the function to return only links to files w/o downloading them
+Instructs the function to return only links to files w/o downloading them.
+
+.PARAMETER ForceSSL
+Instructs the fuctions to use HTTPS-links only.
 
 .PARAMETER SearchPageTemplate
 A URL of a web-page with a list of available update sets for a KB.
@@ -105,6 +108,9 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
         [Parameter(ParameterSetName = 'ByGUID')]
         [switch]$LinksOnly,
         [Parameter(ParameterSetName = 'Default')]
+        [Parameter(ParameterSetName = 'ByGUID')]
+        [switch]$ForceSSL,
+        [Parameter(ParameterSetName = 'Default')]
         [string]$SearchPageTemplate = 'https://www.catalog.update.microsoft.com/Search.aspx?q={0}',
         [Parameter(ParameterSetName = 'Default')]
         [Parameter(ParameterSetName = 'ByGUID')]
@@ -141,12 +147,34 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
             }
         }
 
+        function RewriteURLtoHTTPS {
+            Param (
+                [Parameter(Mandatory)]
+                [string[]]$URL
+            )
+
+            BEGIN {
+                $Result = @()
+            }
+            PROCESS {
+                foreach ($Item in $URL) {
+                    if ($Item -match '^https*:\/\/(.+)$') {
+                        $Result += ('https://{0}' -f $Matches[1])
+                    }
+                }
+            }
+            END {
+                return $Result
+            }
+        }
+
         function ParseKBDownloadLinksFromText {
             Param (
                 [Parameter(Mandatory)]
                 $Text,
                 [guid]$GUID,
-                [string]$KB
+                [string]$KB,
+                [switch]$ForceSSL
             )
 
             BEGIN {
@@ -168,6 +196,9 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
                 }
             }
             END {
+                if ($ForceSSL) {
+                    $Result = RewriteURLtoHTTPS -URL $Result
+                }
                 return $Result
             }
         }
@@ -176,7 +207,8 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
                 [Parameter(Mandatory)]
                 [Microsoft.PowerShell.Commands.HtmlWebResponseObject]$HTMLObject,
                 [guid]$GUID,
-                [string]$KB
+                [string]$KB,
+                [switch]$ForceSSL
             )
 
             BEGIN {
@@ -184,7 +216,7 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
             PROCESS {
                 $KBCatalogDownloadPageScripts = $HTMLObject.ParsedHtml.getElementsByTagName('script') # The actual update links are in a JavaScript array, grabbing all the scripts from the page. 
                 $KBDownloadScriptText = ($KBCatalogDownloadPageScripts | Where-Object -FilterScript {$_.innerHTML -Like '*var downloadInformation = new Array();*'}).innerHTML # Then we finding the one containing the download links.
-                $Result = ParseKBDownloadLinksFromText -Text $KBDownloadScriptText -KB $KB -GUID $GUID
+                $Result = ParseKBDownloadLinksFromText -Text $KBDownloadScriptText -KB $KB -GUID $GUID -ForceSSL:$ForceSSL
             }
             END {
                 return $Result
@@ -197,14 +229,15 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
                 [string]$DownloadPageTemplate,
                 [Parameter(Mandatory)]
                 [guid]$GUID,
-                [string]$KB
+                [string]$KB,
+                [switch]$ForceSSL
             )
 
             BEGIN {
             }
             PROCESS {
                 $KBCatalogDownloadPage = Invoke-WebRequest -Uri ($DownloadPageTemplate -f $GUID)
-                $Result = ParseKBDownloadLinksFromHTML -HTMLObject $KBCatalogDownloadPage -KB $KB -GUID $GUID
+                $Result = ParseKBDownloadLinksFromHTML -HTMLObject $KBCatalogDownloadPage -KB $KB -GUID $GUID -ForceSSL:$ForceSSL
             }
             END {
                 return $Result
@@ -281,10 +314,10 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
         }
 
         if ($PSCmdlet.ParameterSetName -eq 'Default') {
-            $DownloadLinks = GetKBDownloadLinksByGUID -DownloadPageTemplate $DownloadPageTemplate -GUID $GUID -KB $KB
+            $DownloadLinks = GetKBDownloadLinksByGUID -DownloadPageTemplate $DownloadPageTemplate -GUID $GUID -KB $KB -ForceSSL:$ForceSSL
         }
         else {
-            $DownloadLinks = GetKBDownloadLinksByGUID -DownloadPageTemplate $DownloadPageTemplate -GUID $GUID
+            $DownloadLinks = GetKBDownloadLinksByGUID -DownloadPageTemplate $DownloadPageTemplate -GUID $GUID -ForceSSL:$ForceSSL
         }
         
         if ($DownloadLinks) {
