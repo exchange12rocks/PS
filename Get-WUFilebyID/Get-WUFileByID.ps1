@@ -46,7 +46,7 @@ A folder where downloaded files will be saved.
 Instructs the function to return only links to files w/o downloading them.
 
 .PARAMETER ForceSSL
-Instructs the fuctions to use HTTPS-links only.
+By default the Update Catalog returns HTTP links. Use this parameter to download files through HTTPS.
 
 .PARAMETER SearchPageTemplate
 A URL of a web-page with a list of available update sets for a KB.
