@@ -86,8 +86,10 @@
     [boolean]
 
 .NOTES
-   Author: Kirill Nikolaev
-   Twitter: @exchange12rocks
+    Author: Kirill Nikolaev
+    Twitter: @exchange12rocks
+    Web-site: https://exchange12rocks.org
+    GitHub: https://github.com/exchange12rocks
 
 .LINK
     https://exchange12rocks.org/2017/05/29/function-to-test-a-date-against-different-conditions
