@@ -346,7 +346,7 @@ https://github.com/exchange12rocks/PS/tree/master/Get-WUFilebyID
             }
         }
 
-        if ($GUID.gettype().Name -eq 'Guid') { # Since the function parameter should be of the [guid] type, to simplify validation, and we actually need a string (and set $GUID to a string if the work mode is NOT "ByGUID"), it's easier to just check&convert the type on-the-fly.
+        if ($GUID -is [Guid]) { # Since the function parameter should be of the [guid] type, to simplify validation, and we actually need a string (and set $GUID to a string if the work mode is NOT "ByGUID"), it's easier to just check&convert the type on-the-fly.
             [string]$GUID = $Guid.Guid
         }
 
