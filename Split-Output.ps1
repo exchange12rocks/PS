@@ -28,7 +28,7 @@ function Split-Output {
                 }
                 'Error' {
                     if ($Item -is [System.Management.Automation.ErrorRecord]) {
-                        $Item | & ($ScriptBlock)
+                        $Item | & $ScriptBlock
                     }
                     else {
                         Write-Output -InputObject $Item
@@ -36,7 +36,7 @@ function Split-Output {
                 }
                 'Warning' {
                     if ($Item -is [System.Management.Automation.WarningRecord]) {
-                        $Item | & ($ScriptBlock)
+                        $Item | & $ScriptBlock
                     }
                     else {
                         Write-Output -InputObject $Item
@@ -44,7 +44,7 @@ function Split-Output {
                 }
                 'Output' {
                     if ($Item -isnot [System.Management.Automation.DebugRecord] -and $Item -isnot [System.Management.Automation.ErrorRecord] -and $Item -isnot [System.Management.Automation.WarningRecord]) {
-                        $Item | & ($ScriptBlock)
+                        $Item | & $ScriptBlock
                     }
                     else {
                         Write-Output -InputObject $Item
