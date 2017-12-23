@@ -42,9 +42,9 @@ function Split-Output {
             $FilterAttribute.Position = 3
             $FilterAttributeCollection = New-Object -TypeName 'System.Collections.ObjectModel.Collection[System.Attribute]'
             $FilterAttributeCollection.Add($FilterAttribute)
-            $Filter = New-Object -TypeName 'System.Management.Automation.RuntimeDefinedParameter' -ArgumentList ('Filter', [ScriptBlock], $FilterAttribute)
+            $FilterParameter = New-Object -TypeName 'System.Management.Automation.RuntimeDefinedParameter' -ArgumentList ('Filter', [ScriptBlock], $FilterAttribute)
             $FilterDictionary = New-Object -TypeName 'System.Management.Automation.RuntimeDefinedParameterDictionary'
-            $FilterDictionary.Add('Filter', $Filter)
+            $FilterDictionary.Add('Filter', $FilterParameter)
             $FilterDictionary
         }
     }
