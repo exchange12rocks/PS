@@ -32,12 +32,28 @@ function Split-Output {
         [Parameter(Mandatory, Position = 1)]
         [ScriptBlock]$ScriptBlock,
         [Parameter(Position = 2)]
-        [ValidateSet('Debug','Error','Warning','Output')]
+        [ValidateSet('Debug', 'Error', 'Warning', 'Default', 'Custom')]
         [string]$Mode
     )
+    DynamicParam {
+        if ($Mode -eq 'Custom') {
+            $FilterAttribute = New-Object System.Management.Automation.ParameterAttribute
+            $FilterAttribute.Mandatory = $true
+            $FilterAttribute.Position = 3
+            $FilterAttributeCollection = New-Object -TypeName 'System.Collections.ObjectModel.Collection[System.Attribute]'
+            $FilterAttributeCollection.Add($FilterAttribute)
+            $Filter = New-Object -TypeName 'System.Management.Automation.RuntimeDefinedParameter' -ArgumentList ('Filter', [ScriptBlock], $FilterAttribute)
+            $FilterDictionary = New-Object -TypeName 'System.Management.Automation.RuntimeDefinedParameterDictionary'
+            $FilterDictionary.Add('Filter', $Filter)
+            $FilterDictionary
+        }
+    }
 
     BEGIN {
         $ScriptBlock = [ScriptBlock]::Create('PROCESS {{$_ | {0}}}' -f $ScriptBlock.ToString())
+        if ($PSBoundParameters.Filter) {
+            $Filter = [ScriptBlock]::Create('PROCESS {{{0}}}' -f $PSBoundParameters.Filter.ToString())
+        }
     }
     PROCESS {
         foreach ($Item in $InputObject) {
@@ -66,7 +82,15 @@ function Split-Output {
                         Write-Output -InputObject $Item
                     }
                 }
-                'Output' {
+                'Custom' {
+                    if ($Item | & $Filter) {
+                        $Item | & $ScriptBlock
+                    }
+                    else {
+                        Write-Output -InputObject $Item
+                    }
+                }
+                Default {
                     if ($Item -isnot [System.Management.Automation.DebugRecord] -and $Item -isnot [System.Management.Automation.ErrorRecord] -and $Item -isnot [System.Management.Automation.WarningRecord]) {
                         $Item | & $ScriptBlock
                     }
