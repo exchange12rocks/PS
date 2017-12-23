@@ -37,7 +37,7 @@ function Split-Output {
     )
     DynamicParam {
         if ($Mode -eq 'Custom') {
-            $FilterAttribute = New-Object System.Management.Automation.ParameterAttribute
+            $FilterAttribute = New-Object -TypeName 'System.Management.Automation.ParameterAttribute'
             $FilterAttribute.Mandatory = $true
             $FilterAttribute.Position = 3
             $FilterAttributeCollection = New-Object -TypeName 'System.Collections.ObjectModel.Collection[System.Attribute]'
